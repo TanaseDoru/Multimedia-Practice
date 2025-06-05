@@ -116,15 +116,80 @@ def ex3():
     print("Accuray: ", counter / len(X_test))
 
 
-
+def normalize(images, labels):
+  images = tf.cast(images, tf.float32)
+  images /= 255
+  return images, labels
 
 def ex4():
-    print("hello")
+    # Load and preprocess images
+    trainCleanImages = [cv2.imread(file) for file in glob.glob("./train/clean/*.png")]
+    trainMessyImages = [cv2.imread(file) for file in glob.glob("./train/messy/*.png")]
+    testImages = [cv2.imread(file) for file in glob.glob("./test/*.png")]
+    
+    trainCleanImages = [cv2.cvtColor(file, cv2.COLOR_BGR2GRAY) for file in trainCleanImages]
+    trainMessyImages = [cv2.cvtColor(file, cv2.COLOR_BGR2GRAY) for file in trainMessyImages]
+    testImages = [cv2.cvtColor(file, cv2.COLOR_BGR2GRAY) for file in testImages]
+
+    # Resize images to 299x299 as expected by the model
+    # trainCleanImages = [cv2.resize(img, (299, 299)) for img in trainCleanImages]
+    # trainMessyImages = [cv2.resize(img, (299, 299)) for img in trainMessyImages]
+    # testImages = [cv2.resize(img, (299, 299)) for img in testImages]
+
+    # Prepare training data and labels (0 for clean, 1 for messy)
+    X_train = np.array(trainCleanImages + trainMessyImages)
+    y_train = np.array([0] * len(trainCleanImages) + [1] * len(trainMessyImages))
+    X_test = np.array(testImages)
+
+    # Normalize pixel values
+    X_train = X_train / 255.0
+    X_test = X_test / 255.0
+
+    # Reshape for CNN input (batch, height, width, channels)
+    X_train = X_train.reshape(-1, 299, 299, 1)
+    X_test = X_test.reshape(-1, 299, 299, 1)
+
+    # Define the CNN model
+    modelCNN = tf.keras.Sequential([
+        tf.keras.layers.Conv2D(32, (3,3), padding='same', activation=tf.nn.relu,
+                            input_shape=(299, 299, 1)),
+        tf.keras.layers.MaxPooling2D((2, 2), strides=2),
+        tf.keras.layers.Conv2D(64, (3,3), padding='same', activation=tf.nn.relu),
+        tf.keras.layers.MaxPooling2D((2, 2), strides=2),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(128, activation=tf.nn.relu),
+        tf.keras.layers.Dense(2, activation=tf.nn.softmax)  # 2 classes: clean/messy
+    ])
+
+    # Compile the model
+    modelCNN.compile(optimizer='adam',
+                     loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
+                     metrics=['accuracy'])
+
+    # Train the model
+    modelCNN.fit(X_train, y_train, epochs=5)
+
+    # Evaluate the model (assuming test labels are available, otherwise predict only)
+    # For this example, we can predict on test data
+    counter = 0
+    y_test = [0, 0, 1, 0, 1, 1, 0, 1 ,1 ,0]
+    predictions = modelCNN.predict(X_test)
+    for i in range(len(X_test)):
+        if(np.argmax(predictions[i]) == y_test[i]):
+            counter = counter + 1
+
+    # Print model summary to check parameters
+    modelCNN.summary()
+
+    print("Accuracy: ", 100.0 * counter / len(X_test), "%")
+
+
+
+
 
 # ex1()
 # ex2()
 # ex3()
 ex4()
-
 
 # plt.show()
